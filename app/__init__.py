@@ -23,11 +23,13 @@ def create_app():
     from app.controllers.coin_controller import bp as coin_bp
     from app.controllers.trade_controller import bp as trade_bp
     from app.controllers.transaction_controller import bp as transaction_bp
+    from app.controllers.home_controller import bp as home_bp
 
     app.register_blueprint(user_bp)
     app.register_blueprint(wallet_bp)
     app.register_blueprint(coin_bp)
     app.register_blueprint(trade_bp)
     app.register_blueprint(transaction_bp)
+    app.register_blueprint(home_bp)
 
     return app

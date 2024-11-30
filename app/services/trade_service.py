@@ -1,27 +1,27 @@
-from app.models.trade import Trade, TradeType
-from app.extensions import db
+from app.repositories.trade_repository import TradeRepository
+from app.repositories.wallet_repository import WalletRepository
+from app.utils.profit_loss import ProfitLossCalculator
 
 class TradeService:
     @staticmethod
     def create_trade(user_id, coin_symbol, trade_type, quantity, price_at_trade, direction):
-        new_trade = Trade(
-            user_id=user_id,
-            coin_symbol=coin_symbol.upper(),
-            trade_type=TradeType[trade_type.upper()],
-            quantity=quantity,
-            price_at_trade=price_at_trade,
-            direction=direction.lower(),
-        )
-        db.session.add(new_trade)
-        db.session.commit()
-        return {"message": "Trade created successfully", "trade_id": new_trade.id}, 201
+        wallet = WalletRepository.get_wallet_by_user_id(user_id)
+        if not wallet or wallet.balance < (quantity * price_at_trade):
+            return {"error": "Insufficient balance"}, 400
+
+        trade = TradeRepository.create_trade(user_id, coin_symbol, trade_type, quantity, price_at_trade, direction)
+        WalletRepository.update_wallet_balance(wallet.id, -(quantity * price_at_trade))
+        return {"message": "Trade created successfully", "trade_id": trade.id}, 201
 
     @staticmethod
     def close_trade(trade_id):
-        trade = Trade.query.get(trade_id)
+        trade = TradeRepository.get_trade_by_id(trade_id)
         if not trade or trade.status == "closed":
             return {"error": "Trade not found or already closed"}, 404
 
-        trade.status = "closed"
-        db.session.commit()
-        return {"message": "Trade closed successfully"}, 200
+        wallet = WalletRepository.get_wallet_by_user_id(trade.user_id)
+        pnl = ProfitLossCalculator.calculate_pnl(trade)
+        WalletRepository.update_wallet_balance(wallet.id, pnl)
+
+        closed_trade = TradeRepository.close_trade(trade_id)
+        return {"message": "Trade closed successfully", "pnl": pnl}, 200

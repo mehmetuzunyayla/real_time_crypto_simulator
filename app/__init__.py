@@ -1,6 +1,7 @@
 from flask import Flask
 from app.extensions import db, migrate
 from app.config import Config
+from app.tasks.price_updater import start_price_updater
 
 # Import models
 from app.models.user import User
@@ -17,6 +18,9 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
+    # Start price updater
+    start_price_updater(app,interval=5)  # Fetch prices every 5 seconds
+    
     # Register controllers
     from app.controllers.user_controller import bp as user_bp
     from app.controllers.wallet_controller import bp as wallet_bp

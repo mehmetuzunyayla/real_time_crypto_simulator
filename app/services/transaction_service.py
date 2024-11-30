@@ -1,10 +1,9 @@
-from app.models.transaction import Transaction
-from app.extensions import db
+from app.repositories.transaction_repository import TransactionRepository
 
 class TransactionService:
     @staticmethod
     def get_transactions(wallet_id):
-        transactions = Transaction.query.filter_by(wallet_id=wallet_id).all()
+        transactions = TransactionRepository.get_transactions_by_wallet_id(wallet_id)
         if not transactions:
             return {"error": "No transactions found"}, 404
 
@@ -16,11 +15,5 @@ class TransactionService:
 
     @staticmethod
     def log_transaction(wallet_id, amount, description):
-        new_transaction = Transaction(
-            wallet_id=wallet_id,
-            amount=amount,
-            description=description
-        )
-        db.session.add(new_transaction)
-        db.session.commit()
-        return {"message": "Transaction logged successfully", "transaction_id": new_transaction.id}, 201
+        transaction = TransactionRepository.log_transaction(wallet_id, amount, description)
+        return {"message": "Transaction logged successfully", "transaction_id": transaction.id}, 201

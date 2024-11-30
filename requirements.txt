@@ -2,3 +2,5 @@ sqlalchemy
 flask
 flask-sqlalchemy
 flask-migrate
+pyjwt
+requests

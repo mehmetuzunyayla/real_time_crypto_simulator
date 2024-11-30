@@ -1,17 +1,14 @@
 from flask import Blueprint, jsonify
-from app.models.coin import Coin
+from app.services.coin_service import CoinService
 
 bp = Blueprint("coin", __name__, url_prefix="/coins")
 
 @bp.route("/", methods=["GET"])
 def get_all_coins():
-    coins = Coin.query.all()
-    coin_list = [{"symbol": coin.symbol, "name": coin.name, "price": coin.price} for coin in coins]
-    return jsonify(coin_list), 200
+    response, status_code = CoinService.get_all_coins()
+    return jsonify(response), status_code
 
 @bp.route("/<symbol>", methods=["GET"])
 def get_coin(symbol):
-    coin = Coin.query.filter_by(symbol=symbol.upper()).first()
-    if not coin:
-        return jsonify({"error": "Coin not found"}), 404
-    return jsonify({"symbol": coin.symbol, "name": coin.name, "price": coin.price}), 200
+    response, status_code = CoinService.get_coin(symbol)
+    return jsonify(response), status_code

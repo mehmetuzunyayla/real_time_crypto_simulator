@@ -1,16 +1,11 @@
 from flask import Blueprint, jsonify
-from app.models.transaction import Transaction
+from app.services.transaction_service import TransactionService
+from app.utils.auth import token_required
 
 bp = Blueprint("transaction", __name__, url_prefix="/transactions")
 
 @bp.route("/<int:wallet_id>", methods=["GET"])
-def get_transactions(wallet_id):
-    transactions = Transaction.query.filter_by(wallet_id=wallet_id).all()
-    if not transactions:
-        return jsonify({"error": "No transactions found"}), 404
-
-    transaction_list = [
-        {"id": tx.id, "amount": tx.amount, "description": tx.description, "timestamp": tx.timestamp}
-        for tx in transactions
-    ]
-    return jsonify(transaction_list), 200
+@token_required
+def get_transactions(user_id, wallet_id):
+    response, status_code = TransactionService.get_transactions(wallet_id)
+    return jsonify(response), status_code

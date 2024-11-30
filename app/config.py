@@ -10,3 +10,5 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///crypto_simulator.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    USER_SECRET_KEY = os.getenv("USER_SECRET_KEY")  # Load secret key from .env
+

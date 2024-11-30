@@ -1,34 +1,27 @@
 from flask import Blueprint, request, jsonify
-from app.extensions import db
-from app.models.trade import Trade, TradeType
+from app.services.trade_service import TradeService
+from app.utils.auth import token_required
 
 bp = Blueprint("trade", __name__, url_prefix="/trades")
 
 @bp.route("/", methods=["POST"])
-def create_trade():
+@token_required
+def create_trade(user_id):
     data = request.json
-    required_fields = ["user_id", "coin_symbol", "trade_type", "quantity", "price_at_trade", "direction"]
-    if not all(field in data for field in required_fields):
+    coin_symbol = data.get("coin_symbol")
+    trade_type = data.get("trade_type")
+    quantity = data.get("quantity")
+    price_at_trade = data.get("price_at_trade")
+    direction = data.get("direction")
+
+    if not all([coin_symbol, trade_type, quantity, price_at_trade, direction]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    new_trade = Trade(
-        user_id=data["user_id"],
-        coin_symbol=data["coin_symbol"].upper(),
-        trade_type=TradeType[data["trade_type"].upper()],
-        quantity=data["quantity"],
-        price_at_trade=data["price_at_trade"],
-        direction=data["direction"].lower()
-    )
-    db.session.add(new_trade)
-    db.session.commit()
-    return jsonify({"message": "Trade created successfully", "trade_id": new_trade.id}), 201
+    response, status_code = TradeService.create_trade(user_id, coin_symbol, trade_type, quantity, price_at_trade, direction)
+    return jsonify(response), status_code
 
 @bp.route("/<int:trade_id>/close", methods=["POST"])
-def close_trade(trade_id):
-    trade = Trade.query.get(trade_id)
-    if not trade or trade.status == "closed":
-        return jsonify({"error": "Trade not found or already closed"}), 404
-
-    trade.status = "closed"
-    db.session.commit()
-    return jsonify({"message": "Trade closed successfully"}), 200
+@token_required
+def close_trade(user_id, trade_id):
+    response, status_code = TradeService.close_trade(trade_id)
+    return jsonify(response), status_code

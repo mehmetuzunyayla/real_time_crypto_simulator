@@ -1,44 +1,44 @@
 from flask import Blueprint, request, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
+from app.services.auth_service import AuthService
 from app.extensions import db
 from app.models.user import User
-
+from app.models.wallet import Wallet
 bp = Blueprint("user", __name__, url_prefix="/users")
 
 @bp.route("/register", methods=["POST"])
 def register():
     data = request.json
-    if not data.get("username") or not data.get("password") or not data.get("email"):
+    username = data.get("username")
+    email = data.get("email")
+    password = data.get("password")
+
+    if not username or not email or not password:
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Check if the user already exists
-    if User.query.filter_by(email=data["email"]).first():
-        return jsonify({"error": "User already exists"}), 400
-
-    # Create the user
-    hashed_password = generate_password_hash(data["password"])
-    new_user = User(
-        username=data["username"],
-        email=data["email"],
-        password_hash=hashed_password,
-    )
-
-    db.session.add(new_user)
-    db.session.commit()
-
-    return jsonify({"message": "User registered successfully!"}), 201
+    response, status_code = AuthService.register_user(username, email, password)
+    return jsonify(response), status_code
 
 @bp.route("/login", methods=["POST"])
 def login():
     data = request.json
-    if not data.get("email") or not data.get("password"):
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
         return jsonify({"error": "Missing required fields"}), 400
 
-    user = User.query.filter_by(email=data["email"]).first()
-    if not user or not check_password_hash(user.password_hash, data["password"]):
-        return jsonify({"error": "Invalid credentials"}), 401
+    response, status_code = AuthService.login_user(email, password)
+    return jsonify(response), status_code
 
-    # Generate a JWT (placeholder)
-    token = f"dummy-token-for-{user.username}"
+@bp.route("/delete-all", methods=["POST"])
+def delete_all_users():
+    # Delete all wallets (if needed due to foreign key constraints)
+    Wallet.query.delete()
 
-    return jsonify({"message": "Login successful", "token": token}), 200
+    # Delete all users
+    User.query.delete()
+
+    # Commit the changes to the database
+    db.session.commit()
+
+    return jsonify({"message": "All users and their wallets have been deleted"}), 200

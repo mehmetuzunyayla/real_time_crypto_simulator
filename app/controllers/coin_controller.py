@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from app.services.coin_service import CoinService
 from app.models.price_history import PriceHistory
 from app.utils.price_fetcher import PriceFetcher
@@ -25,14 +25,6 @@ def get_price_history(symbol):
     """
     Retrieve historical price data for a given coin symbol.
     """
-    symbol = symbol.lower()  # Ensure case matches the database storage
-    history = PriceHistory.query.filter_by(symbol=symbol).order_by(PriceHistory.timestamp).all()
-
-    if not history:
-        return jsonify({"error": f"No historical data found for coin: {symbol}"}), 404
-
-    # Format the response
-    response = [
-        {"price": h.price, "timestamp": h.timestamp.isoformat()} for h in history
-    ]
-    return jsonify(response), 200
+    interval = request.args.get("interval", "1m")  # Default interval is 1 minute
+    response, status_code = CoinService.get_historical_ohlc(symbol, interval)
+    return jsonify(response), status_code

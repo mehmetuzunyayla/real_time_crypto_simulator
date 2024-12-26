@@ -16,3 +16,10 @@ class UserRepository:
         db.session.add(user)
         db.session.commit()
         return user
+    
+    @staticmethod
+    def update_username(user_id, new_username):
+        user = User.query.get(user_id)
+        if user:
+            user.username = new_username
+            db.session.commit()

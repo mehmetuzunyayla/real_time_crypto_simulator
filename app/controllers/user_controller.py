@@ -42,3 +42,32 @@ def delete_all_users():
     db.session.commit()
 
     return jsonify({"message": "All users and their wallets have been deleted"}), 200
+
+@bp.route("/profile", methods=["GET"])
+def get_profile():
+    try:
+        token = request.headers.get("Authorization").split(" ")[1]
+        payload = AuthService.decode_token(token)
+        user_id = payload["user_id"]
+
+        profile = AuthService.get_user_profile(user_id)
+        return jsonify(profile), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/update_username", methods=["PUT"])
+def update_username():
+    try:
+        token = request.headers.get("Authorization").split(" ")[1]
+        payload = AuthService.decode_token(token)
+        user_id = payload["user_id"]
+
+        data = request.json
+        new_username = data.get("username")
+        if not new_username:
+            return {"error": "Username is required"}, 400
+
+        AuthService.update_username(user_id, new_username)
+        return {"message": "Username updated successfully"}, 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

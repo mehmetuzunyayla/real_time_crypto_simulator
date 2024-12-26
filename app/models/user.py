@@ -7,7 +7,7 @@ class User(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), nullable=False, unique=True)
     email = Column(String(100), nullable=False, unique=True)
-    password_hash = Column(String(128), nullable=False)
+    password_hash = Column(String(512), nullable=False)
     created_at = Column(db.DateTime, default=db.func.now())
     updated_at = Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
 

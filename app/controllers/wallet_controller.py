@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.services.wallet_service import WalletService
+from app.services.auth_service import AuthService
 from app.utils.auth import token_required
 
 bp = Blueprint("wallet", __name__, url_prefix="/wallets")

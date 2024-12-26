@@ -1,26 +1,27 @@
 from flask import Flask
-from app.extensions import db, migrate
+from app.extensions import db, migrate, socketio
 from app.config import Config
 from app.tasks.price_updater import start_price_updater
-
-# Import models
-from app.models.user import User
-from app.models.wallet import Wallet
-from app.models.coin import Coin
-from app.models.trade import Trade
-from app.models.transaction import Transaction
+from app.utils.price_fetcher import PriceFetcher  # Import PriceFetcher
+from flask_cors import CORS
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    CORS(app)
 
     # Initialize extensions
     db.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app, db)  # Ensure 'db' is passed here
+    socketio.init_app(app)
+
+    with app.app_context():
+        # Initialize historical data
+        PriceFetcher.initialize_historical_data()
 
     # Start price updater
-    start_price_updater(app,interval=5)  # Fetch prices every 5 seconds
-    
+    start_price_updater(app, interval=5)
+
     # Register controllers
     from app.controllers.user_controller import bp as user_bp
     from app.controllers.wallet_controller import bp as wallet_bp

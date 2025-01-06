@@ -1,16 +1,36 @@
 from app.models.coin import Coin
 from app.extensions import db
 from app.models.price_history import PriceHistory
-from sqlalchemy import func
+from sqlalchemy import func,text
 
 class CoinRepository:
     @staticmethod
     def get_all_coins():
-        return Coin.query.all()
-
+        """
+        Retrieve all unique coins from price_history.
+        """
+        query = text("SELECT DISTINCT symbol FROM price_history;")
+        result = db.session.execute(query).fetchall()
+        
+        return [row[0].upper() for row in result]  # row[0] because fetchall() returns tuples
+    
     @staticmethod
     def get_coin_by_symbol(symbol):
-        return Coin.query.filter_by(symbol=symbol).first()
+        """
+        Retrieve the latest price entry for a specific coin, ensuring case-insensitivity.
+        """
+        query = text("""
+            SELECT symbol, price, timestamp
+            FROM price_history
+            WHERE LOWER(symbol) = LOWER(:symbol)  -- Ensure case insensitivity
+            ORDER BY timestamp DESC
+            LIMIT 1;
+        """)
+        result = db.session.execute(query, {"symbol": symbol}).fetchone()
+        
+        if result:
+            return {"symbol": result[0].upper(), "price": result[1], "timestamp": result[2]}  # Format response
+        return None
 
     @staticmethod
     def add_coin(symbol, name, price):
@@ -22,7 +42,7 @@ class CoinRepository:
     @staticmethod
     def get_ohlc_data(symbol, interval, start_time):
         """
-        Retrieve aggregated OHLC data for the given symbol and interval using PostgreSQL.
+        Retrieve aggregated OHLC (Open-High-Low-Close) data for the given symbol and interval.
         """
         interval_map = {
             "1m": "minute",
@@ -38,31 +58,56 @@ class CoinRepository:
 
         pg_interval = interval_map[interval]
 
-        ohlc_query = (
-            db.session.query(
-                func.date_trunc(pg_interval, PriceHistory.timestamp).label("interval"),
-                func.min(PriceHistory.price).label("low"),
-                func.max(PriceHistory.price).label("high"),
-                func.min(PriceHistory.timestamp).label("min_time"),
-                func.max(PriceHistory.timestamp).label("max_time"),
+        query = text(f"""
+            WITH price_data AS (
+                SELECT 
+                    date_trunc('{pg_interval}', timestamp) AS interval,
+                    symbol,
+                    price,
+                    timestamp
+                FROM price_history
+                WHERE symbol = :symbol AND timestamp >= :start_time
+            ),
+            grouped_data AS (
+                SELECT
+                    interval,
+                    MIN(price) AS low,
+                    MAX(price) AS high
+                FROM price_data
+                GROUP BY interval
+            ),
+            open_prices AS (
+                SELECT DISTINCT ON (interval) interval, price AS open_price
+                FROM price_data
+                ORDER BY interval, timestamp ASC
+            ),
+            close_prices AS (
+                SELECT DISTINCT ON (interval) interval, price AS close_price
+                FROM price_data
+                ORDER BY interval, timestamp DESC
             )
-            .filter(PriceHistory.symbol == symbol, PriceHistory.timestamp >= start_time)
-            .group_by(func.date_trunc(pg_interval, PriceHistory.timestamp))
-            .order_by(func.date_trunc(pg_interval, PriceHistory.timestamp))
-            .all()
-        )
+            SELECT 
+                gd.interval,
+                gd.low,
+                gd.high,
+                op.open_price,
+                cp.close_price
+            FROM grouped_data gd
+            JOIN open_prices op ON gd.interval = op.interval
+            JOIN close_prices cp ON gd.interval = cp.interval
+            ORDER BY gd.interval;
+        """)
+
+
+        result = db.session.execute(query, {"symbol": symbol, "start_time": start_time}).fetchall()
 
         return [
             {
-                "interval": row.interval,
-                "low": row.low,
-                "high": row.high,
-                "open": db.session.query(PriceHistory.price)
-                .filter(PriceHistory.symbol == symbol, PriceHistory.timestamp == row.min_time)
-                .scalar(),
-                "close": db.session.query(PriceHistory.price)
-                .filter(PriceHistory.symbol == symbol, PriceHistory.timestamp == row.max_time)
-                .scalar(),
+                "interval": row[0].isoformat() if hasattr(row[0], "isoformat") else row[0],
+                "low": float(row[1]),
+                "high": float(row[2]),
+                "open": float(row[3]),
+                "close": float(row[4]),
             }
-            for row in ohlc_query
+            for row in result
         ]

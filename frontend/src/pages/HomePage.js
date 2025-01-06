@@ -7,7 +7,7 @@ const HomePage = () => {
 
     // Map of hardcoded coin icons
     const coinIcons = {
-        BTCUSDT: "http://127.0.0.1:5000/static/icons/btc.png",
+        BTCUSDT: "http://127.0.0.1:5000/static/icons/btcusdt.png",
         ETHUSDT: "http://127.0.0.1:5000/static/icons/eth.png",
         BNBUSDT: "http://127.0.0.1:5000/static/icons/bnb.png",
         ADAUSDT: "http://127.0.0.1:5000/static/icons/ada.png",
@@ -20,7 +20,7 @@ const HomePage = () => {
         XLMUSDT: "http://127.0.0.1:5000/static/icons/xlm.png",
         VETUSDT: "http://127.0.0.1:5000/static/icons/vet.png",
         TRXUSDT: "http://127.0.0.1:5000/static/icons/trx.png",
-        XMRUSDT: "http://127.0.0.1:5000/static/icons/xmr.png",
+        XVGUSDT: "http://127.0.0.1:5000/static/icons/xvg.png",
         XTZUSDT: "http://127.0.0.1:5000/static/icons/xtz.png",
         AAVEUSDT: "http://127.0.0.1:5000/static/icons/aave.png",
         THETAUSDT: "http://127.0.0.1:5000/static/icons/theta.png",
@@ -28,7 +28,6 @@ const HomePage = () => {
         ATOMUSDT: "http://127.0.0.1:5000/static/icons/atom.png",
         FILUSDT: "http://127.0.0.1:5000/static/icons/fil.png",
     };
-    
 
     useEffect(() => {
         // Connect to the WebSocket server
@@ -68,7 +67,8 @@ const HomePage = () => {
                         <tbody>
                             {Object.keys(prices).map((coin) => {
                                 const { price, daily_change } = prices[coin];
-                                const icon = coinIcons[coin] || "/static/icons/default.png"; // Use default icon if missing
+                                const coinKey = coin.toUpperCase(); // Convert to uppercase to match icon map
+                                const icon = coinIcons[coinKey] || "/static/icons/default.png"; // Use default icon if missing
 
                                 // Determine the color for daily change
                                 const changeColor =
@@ -83,13 +83,13 @@ const HomePage = () => {
                                         <td>
                                             <img
                                                 src={icon}
-                                                alt={coin}
+                                                alt={coinKey}
                                                 style={{
                                                     width: "20px",
                                                     marginRight: "10px",
                                                 }}
                                             />
-                                            {coin}
+                                            {coinKey}
                                         </td>
                                         <td>${price.toLocaleString()}</td>
                                         <td className={changeColor}>

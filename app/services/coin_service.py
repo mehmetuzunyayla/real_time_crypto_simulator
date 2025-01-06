@@ -4,42 +4,37 @@ from datetime import datetime, timedelta
 class CoinService:
     @staticmethod
     def get_all_coins():
+        """
+        Retrieve all unique coins from price_history.
+        """
         coins = CoinRepository.get_all_coins()
-        coin_list = [{"symbol": coin.symbol, "name": coin.name, "price": coin.price} for coin in coins]
+        coin_list = [{"symbol": coin} for coin in coins]  # Adjusted to match new repository return format
         return coin_list, 200
 
     @staticmethod
     def get_coin(symbol):
+        """
+        Retrieve the latest price for a specific coin.
+        """
         coin = CoinRepository.get_coin_by_symbol(symbol)
         if not coin:
             return {"error": "Coin not found"}, 404
-        return {"symbol": coin.symbol, "name": coin.name, "price": coin.price}, 200
+        return {"symbol": coin["symbol"], "price": coin["price"], "timestamp": coin["timestamp"]}, 200
     
     @staticmethod
     def get_historical_ohlc(symbol, interval):
         """
         Retrieve OHLC historical data for a given coin symbol and interval.
         """
-        # Define valid intervals
-        valid_intervals = ["1m", "15m", "1h", "4h", "1d", "1w"]
+        ohlc_data = CoinRepository.get_ohlc_data(symbol, interval, datetime.utcnow() - timedelta(days=3))
 
-        if interval not in valid_intervals:
-            return {"error": "Invalid interval provided"}, 400
-
-        # Calculate start time (last 7 days)
-        now = datetime.utcnow()
-        start_time = now - timedelta(days=2)
-
-        # Query OHLC data from the repository
-        ohlc_data = CoinRepository.get_ohlc_data(symbol, interval, start_time)
-        
         if not ohlc_data:
             return {"error": f"No historical data found for coin: {symbol}"}, 404
 
-        # Format the response
+        # Ensure interval is treated as a datetime before calling isoformat()
         response = [
             {
-                "time": row["interval"].isoformat(),
+                "time": row["interval"] if isinstance(row["interval"], str) else row["interval"].isoformat(),
                 "open": float(row["open"]),
                 "high": float(row["high"]),
                 "low": float(row["low"]),

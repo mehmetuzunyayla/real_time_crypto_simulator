@@ -28,3 +28,11 @@ def get_price_history(symbol):
     interval = request.args.get("interval", "1m")  # Default interval is 1 minute
     response, status_code = CoinService.get_historical_ohlc(symbol, interval)
     return jsonify(response), status_code
+
+@bp.route("/<symbol>/ohlc/<interval>", methods=["GET"])
+def get_ohlc_data(symbol, interval):
+    """
+    Retrieve OHLC (Open-High-Low-Close) historical data for a given coin symbol and interval.
+    """
+    response, status_code = CoinService.get_historical_ohlc(symbol, interval)
+    return jsonify(response), status_code

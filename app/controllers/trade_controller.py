@@ -25,3 +25,9 @@ def create_trade(user_id):
 def close_trade(user_id, trade_id):
     response, status_code = TradeService.close_trade(trade_id)
     return jsonify(response), status_code
+
+@bp.route("/history", methods=["GET"])
+@token_required
+def get_trade_history(user_id):
+    response, status_code = TradeService.get_trades_by_user_id(user_id)
+    return jsonify(response), status_code

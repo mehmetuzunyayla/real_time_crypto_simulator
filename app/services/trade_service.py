@@ -25,3 +25,24 @@ class TradeService:
 
         closed_trade = TradeRepository.close_trade(trade_id)
         return {"message": "Trade closed successfully", "pnl": pnl}, 200
+    
+    @staticmethod
+    def get_trades_by_user_id(user_id):
+        trades = TradeRepository.get_trades_by_user_id(user_id)
+        if not trades:
+            return {"error": "No trades found"}, 404
+        
+        trade_list = [
+            {
+                "id": trade.id,
+                "coin_symbol": trade.coin_symbol,
+                "trade_type": trade.trade_type.value,
+                "direction": trade.direction,
+                "quantity": trade.quantity,
+                "price_at_trade": trade.price_at_trade,
+                "status": trade.status,
+            }
+            for trade in trades
+        ]
+        return trade_list, 200
+

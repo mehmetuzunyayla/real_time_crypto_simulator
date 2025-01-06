@@ -11,88 +11,115 @@ class PriceFetcher:
     HISTORICAL_URL = "https://api.binance.com/api/v3/klines"  # Binance Klines endpoint
     COIN_LIST = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "DOGEUSDT",
                  "SOLUSDT", "DOTUSDT", "LTCUSDT", "LINKUSDT", "UNIUSDT",
-                 "XLMUSDT", "VETUSDT", "TRXUSDT", "XMRUSDT", "XTZUSDT",
+                 "XLMUSDT", "VETUSDT", "TRXUSDT", "XVGUSDT", "XTZUSDT",
                  "AAVEUSDT", "THETAUSDT", "EOSUSDT", "ATOMUSDT", "FILUSDT"]
     cached_prices = {}
 
     @staticmethod
     def initialize_historical_data():
         """
-        Initialize the historical data for the last 3 days.
-        Deletes old data and fetches the latest values from Binance.
+        Fetches historical data for each coin in small chunks to avoid API limitations.
         """
         try:
-            # Clear existing historical data
-            db.session.query(PriceHistory).delete()
+            db.session.query(PriceHistory).delete()  # Clear previous data
             db.session.commit()
             print("[PriceFetcher] Cleared old historical data.")
 
-            # Fetch and save historical data for the last 3 days for each coin
             for symbol in PriceFetcher.COIN_LIST:
-                params = {
-                    "symbol": symbol,
-                    "interval": "1m",  # Fetch 1-minute data
-                    "startTime": int((datetime.utcnow() - timedelta(days=2)).timestamp() * 1000),
-                    "endTime": int(datetime.utcnow().timestamp() * 1000),
-                    "limit": 1000  # Binance allows fetching up to 1000 records per request
-                }
-                response = requests.get(PriceFetcher.HISTORICAL_URL, params=params)
-                response.raise_for_status()
-                data = response.json()
+                print(f"[PriceFetcher] Fetching historical data for {symbol}...")
 
-                # Save the fetched data to the database
-                for item in data:
-                    timestamp = datetime.fromtimestamp(item[0] / 1000)
-                    price = float(item[4])  # Closing price
-                    price_entry = PriceHistory(symbol=symbol.lower(), price=price, timestamp=timestamp)
-                    db.session.add(price_entry)
-                db.session.commit()
-                print(f"[PriceFetcher] Historical data saved for {symbol}.")
+                end_time = int(datetime.utcnow().timestamp() * 1000)
+                start_time = int((datetime.utcnow() - timedelta(days=3)).timestamp() * 1000)
+
+                while start_time < end_time:
+                    params = {
+                        "symbol": symbol,
+                        "interval": "1m",  # 1-minute data
+                        "startTime": start_time,
+                        "endTime": end_time,
+                        "limit": 1000  # Fetch 1000 records at a time
+                    }
+                    response = requests.get(PriceFetcher.HISTORICAL_URL, params=params)
+                    response.raise_for_status()
+                    data = response.json()
+
+                    if not data:
+                        print(f"[PriceFetcher] No more historical data for {symbol}.")
+                        break
+
+                    for item in data:
+                        timestamp = datetime.fromtimestamp(item[0] / 1000)
+                        price = float(item[4])  # Closing price
+                        price_entry = PriceHistory(symbol=symbol.lower(), price=price, timestamp=timestamp)
+                        db.session.add(price_entry)
+
+                    db.session.commit()
+                    print(f"[PriceFetcher] Saved {len(data)} historical records for {symbol}.")
+
+                    # ✅ Fixed timestamp handling for pagination
+                    start_time = data[-1][0] + 1  # Move forward by 1 millisecond
+
+                    # Avoid hitting Binance API rate limits
+                    time.sleep(0.5)
 
         except SQLAlchemyError as e:
             db.session.rollback()
             print(f"[PriceFetcher] Database error: {str(e)}")
         except Exception as e:
             print(f"[PriceFetcher] Error initializing historical data: {str(e)}")
-
+            
     @staticmethod
     def fetch_prices():
         """
-        Fetch live prices for all coins and broadcast them via WebSocket.
+        Fetch live prices for all coins and store them in price_history.
+        Ensures symbols are always stored in "btcusdt" format.
         """
         try:
             response = requests.get(PriceFetcher.BASE_URL)
             response.raise_for_status()
             data = response.json()
 
-            # Filter and structure data for COIN_LIST
             filtered_data = {}
             for item in data:
                 symbol = item["symbol"]
-                if symbol in PriceFetcher.COIN_LIST:
-                    current_price = float(item["lastPrice"])
-                    daily_change = float(item["priceChangePercent"])  # Directly from Binance API
 
-                    # Build filtered data structure without icons
-                    filtered_data[symbol] = {
+                if symbol in PriceFetcher.COIN_LIST:
+                    # Convert symbol to lowercase and ensure "usdt" is always included
+                    standardized_symbol = symbol.lower()
+
+                    current_price = float(item["lastPrice"])
+                    daily_change = float(item["priceChangePercent"])
+
+                    # Store in cache for WebSocket updates
+                    filtered_data[standardized_symbol] = {
                         "price": current_price,
                         "daily_change": daily_change
                     }
 
+                    # Save to database
+                    price_entry = PriceHistory(
+                        symbol=standardized_symbol,
+                        price=current_price,
+                        timestamp=datetime.utcnow()
+                    )
+                    db.session.add(price_entry)
+
+            # Commit all changes to database
+            db.session.commit()
+
             # Update cached prices
             PriceFetcher.cached_prices = filtered_data
-
-            # Save historical prices to the database
-            for symbol, data in filtered_data.items():
-                coin_symbol = symbol[:-4]  # Remove 'USDT' from the symbol
-                price_entry = PriceHistory(symbol=coin_symbol.lower(), price=data["price"])
-                db.session.add(price_entry)
-            db.session.commit()
 
             # Broadcast prices to WebSocket clients
             socketio.emit('price_update', PriceFetcher.cached_prices)
 
             return {"message": "Prices updated and broadcasted successfully"}, 200
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"[PriceFetcher] Database error: {str(e)}")
+            return {"error": str(e)}, 500
+
         except Exception as e:
             print(f"[PriceFetcher] Error fetching prices: {str(e)}")
             return {"error": str(e)}, 500

@@ -6,7 +6,7 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "default_secret_key")  # Keep your existing secret key
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", "postgresql://postgres:123456@localhost:5432/crypto_simulator"
+        "DATABASE_URL", "postgresql://yourusername:yourpassword@localhost:5432/yourdatabasename"
     )  # Update this with PostgreSQL credentials
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")

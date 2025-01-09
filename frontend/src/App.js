@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage';
 import TradePage from './pages/TradePage';
 import WalletPage from './pages/WalletPage';
 import ProfilePage from './pages/ProfilePage';
+import './App.css';
 
 const App = () => {
     const [prices, setPrices] = useState({});

@@ -17,6 +17,7 @@ class Trade(db.Model):
     price_at_trade = Column(Float, nullable=False)  # Price when the trade was made
     direction = Column(String(10), nullable=False)  # "long" or "short"
     status = Column(String(10), default="open")     # "open" or "closed"
+    close_pnl = Column(Float, nullable=True)  # ✅ New column to store profit/loss when trade is closed
 
     user = relationship("User", back_populates="trades")
     coin = relationship("Coin")

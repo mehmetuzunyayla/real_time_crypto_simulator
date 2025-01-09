@@ -20,3 +20,11 @@ class WalletRepository:
             wallet.balance += amount
             db.session.commit()
         return wallet
+    
+    @staticmethod
+    def update_wallet_balance2(wallet_id, new_balance):
+        wallet = Wallet.query.get(wallet_id)
+        if wallet:
+            wallet.balance = new_balance
+            db.session.commit()
+        return wallet

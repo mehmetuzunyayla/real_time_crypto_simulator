@@ -3,7 +3,7 @@ import ApexCharts from "react-apexcharts";
 import { io } from "socket.io-client";
 import axiosInstance from "../services/axiosInstance";
 
-const MAX_CANDLES = 100; // Keep chart efficient
+const MAX_CANDLES = 50; // Keep chart efficient
 
 const PriceChart = ({ selectedCoin }) => {
     const [ohlcData, setOhlcData] = useState([]);
@@ -16,7 +16,7 @@ const PriceChart = ({ selectedCoin }) => {
     useEffect(() => {
         const fetchChartData = async () => {
             try {
-                const response = await axiosInstance.get(`/coins/${selectedCoin}/ohlc/${interval}`);
+                const response = await axiosInstance.get(`/coins/${selectedCoin.toLowerCase()}/ohlc/${interval}`);
                 const formattedData = response.data.map((entry) => ({
                     x: new Date(entry.time).getTime(),
                     y: [entry.open, entry.high, entry.low, entry.close]
@@ -86,7 +86,22 @@ const PriceChart = ({ selectedCoin }) => {
 
     const options = {
         chart: { type: "candlestick", height: 400 },
-        xaxis: { type: "datetime", labels: { format: "HH:mm dd MMM" } },
+        xaxis: {
+            type: "datetime",
+            labels: {
+                formatter: function (val) {
+                    let date = new Date(val);
+                    date.setHours(date.getHours() + 3); // ✅ Convert UTC to UTC+3
+                    
+                    return date.toLocaleString("en-GB", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        day: "2-digit",
+                        month: "short"
+                    }).replace(",", ""); // ✅ Format as "00.00 09 Jan"
+                }
+            }
+        },
         yaxis: {
             opposite: true, // Moves Y-axis to the right
             min: minPrice - priceBuffer,
@@ -110,15 +125,15 @@ const PriceChart = ({ selectedCoin }) => {
             ]
         }
     };
+    
+    
 
     return (
         <div>
             <h3>{selectedCoin.toUpperCase()} Price Chart</h3>
             <select value={interval} onChange={(e) => setInterval(e.target.value)}>
                 <option value="1m">1 Minute</option>
-                <option value="15m">15 Minutes</option>
                 <option value="1h">1 Hour</option>
-                <option value="4h">4 Hours</option>
                 <option value="1d">1 Day</option>
             </select>
             {ohlcData.length ? (

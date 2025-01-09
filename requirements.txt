@@ -5,3 +5,7 @@ flask-migrate
 pyjwt
 requests
 flask-cors
+flask-socketio
+eventlet
+psycopg2-binary
+python-dotenv
